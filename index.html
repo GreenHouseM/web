@@ -223,7 +223,7 @@
       const y = point.y;
       const xScale = chart.scales.x;
 
-      if (xScale && y >= xScale.top - 6 && y <= xScale.bottom + 10 && x >= xScale.left && x <= xScale.right) {
+      if (xScale && y >= area.bottom - 4 && y <= chart.height && x >= xScale.left && x <= xScale.right) {
         setHours(hoursFromTimeClick((x - area.left) / (area.right - area.left)));
         return;
       }
