@@ -218,10 +218,12 @@
 
     function handleChartClick(event, elements, chart) {
       const area = chart.chartArea;
-      const x = event.x;
-      const y = event.y;
+      const point = getChartClickPoint(event);
+      const x = point.x;
+      const y = point.y;
+      const xScale = chart.scales.x;
 
-      if (y > area.bottom && x >= area.left && x <= area.right) {
+      if (xScale && y >= xScale.top - 6 && y <= xScale.bottom + 10 && x >= xScale.left && x <= xScale.right) {
         setHours(hoursFromTimeClick((x - area.left) / (area.right - area.left)));
         return;
       }
@@ -246,6 +248,18 @@
         saveChartSettings();
         loadData();
       }
+    }
+
+    function getChartClickPoint(event) {
+      if (Number.isFinite(event.x) && Number.isFinite(event.y)) {
+        return { x: event.x, y: event.y };
+      }
+
+      const nativeEvent = event.native || event;
+      return {
+        x: nativeEvent.offsetX,
+        y: nativeEvent.offsetY
+      };
     }
 
     function hoursFromTimeClick(ratio) {
@@ -288,7 +302,8 @@
         drawChart(data.chart || []);
         renderSensors(data.sensors || []);
 
-        status.textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA');
+        status.textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA') +
+          ' · ' + chartSettings.hours + ' год';
 
       } catch (err) {
         console.error(err);
