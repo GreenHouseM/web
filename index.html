@@ -106,6 +106,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbz7E4kd4iFHySkV8BL8hvx7XT8oToAE6KN8ZORgV6IHtYHHpJ7A29mjXWi9T7JXqhnF2Q/exec';
 
     let tempChart = null;
+    const GREENHOUSE_COUNT = 4;
 
     let chartSettings = JSON.parse(localStorage.getItem('chartSettings')) || {
       hours: 3,
@@ -114,8 +115,27 @@
         green2: true,
         green3: true,
         green4: true
+      },
+      setpoints: {
+        green1: false,
+        green2: false,
+        green3: false,
+        green4: false
       }
     };
+
+    if (!chartSettings.setpoints) {
+      chartSettings.setpoints = {};
+    }
+    for (let i = 1; i <= GREENHOUSE_COUNT; i++) {
+      const id = 'green' + i;
+      if (chartSettings.visible[id] === undefined) {
+        chartSettings.visible[id] = true;
+      }
+      if (chartSettings.setpoints[id] === undefined) {
+        chartSettings.setpoints[id] = false;
+      }
+    }
 
     function saveChartSettings() {
       localStorage.setItem('chartSettings', JSON.stringify(chartSettings));
@@ -133,6 +153,11 @@
         <button onclick="toggleGreen('green2')" class="${chartSettings.visible.green2 ? 'active' : ''}">Т2</button>
         <button onclick="toggleGreen('green3')" class="${chartSettings.visible.green3 ? 'active' : ''}">Т3</button>
         <button onclick="toggleGreen('green4')" class="${chartSettings.visible.green4 ? 'active' : ''}">Т4</button>
+
+        <button onclick="toggleSetpoint('green1')" class="${chartSettings.setpoints.green1 ? 'active' : ''}">U1</button>
+        <button onclick="toggleSetpoint('green2')" class="${chartSettings.setpoints.green2 ? 'active' : ''}">U2</button>
+        <button onclick="toggleSetpoint('green3')" class="${chartSettings.setpoints.green3 ? 'active' : ''}">U3</button>
+        <button onclick="toggleSetpoint('green4')" class="${chartSettings.setpoints.green4 ? 'active' : ''}">U4</button>
       `;
     }
 
@@ -150,6 +175,13 @@
       loadData();
     }
 
+    function toggleSetpoint(id) {
+      chartSettings.setpoints[id] = !chartSettings.setpoints[id];
+      saveChartSettings();
+      renderControls();
+      loadData();
+    }
+
     async function loadData() {
       const box = document.getElementById('greenhouses');
       const status = document.getElementById('status');
@@ -160,7 +192,7 @@
 
         box.innerHTML = '';
 
-        (data.current || []).filter(item => Number(item.greenhouse) <= 4).forEach(item => {
+        (data.current || []).filter(item => Number(item.greenhouse) <= GREENHOUSE_COUNT).forEach(item => {
           const temp = Number(String(item.temp).replace(',', '.'));
 
           box.innerHTML += `
@@ -186,25 +218,29 @@
 
       const datasets = [];
 
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= GREENHOUSE_COUNT; i++) {
         const id = 'green' + i;
 
-        if (!chartSettings.visible[id]) continue;
+        if (chartSettings.visible[id]) {
+          datasets.push({
+            label: 'Теплиця ' + i,
+            data: chartData.map(row => parseChartNumber(row[id])),
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2
+          });
+        }
 
-        datasets.push({
-          label: 'Теплиця ' + i,
-          data: chartData.map(row => {
-            const v = row[id];
-
-            if (v === '' || v === null || v === undefined) return null;
-
-            const n = Number(String(v).replace(',', '.'));
-            return isNaN(n) ? null : n;
-          }),
-          tension: 0.3,
-          pointRadius: 0,
-          borderWidth: 2
-        });
+        if (chartSettings.setpoints[id]) {
+          datasets.push({
+            label: 'U' + i,
+            data: chartData.map(row => getSetpointValue(row, i)),
+            tension: 0,
+            pointRadius: 0,
+            borderWidth: 2,
+            borderDash: [6, 4]
+          });
+        }
       }
 
       const ctx = document.getElementById('tempChart').getContext('2d');
@@ -264,6 +300,39 @@
           }
         }
       });
+    }
+
+    function parseChartNumber(value) {
+      if (value === '' || value === null || value === undefined) return null;
+
+      const n = Number(String(value).replace(',', '.'));
+      return isNaN(n) ? null : n;
+    }
+
+    function getSetpointValue(row, index) {
+      const keys = [
+        'u' + index,
+        'U' + index,
+        'setpoint' + index,
+        'setpoint_' + index,
+        'setpoint_c' + index,
+        'green' + index + '_u',
+        'green' + index + '_U',
+        'green' + index + '_setpoint',
+        'green' + index + '_setpoint_c',
+        'green' + index + 'Setpoint',
+        'green' + index + 'U',
+        'target' + index,
+        'target_' + index
+      ];
+
+      for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(row, key)) {
+          return parseChartNumber(row[key]);
+        }
+      }
+
+      return null;
     }
 
     renderControls();
