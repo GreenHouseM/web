@@ -158,7 +158,7 @@
   <div class="status" id="status">Завантаження...</div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxl3r-M8EHIa0AtFGjEiN3faGfyKuCpyly6Re-43lB66cnUcNPO1ZHRT5TrKtG0ZO-tPQ/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwOMKldCpFBbbGX9tazvOscThYVhkMGtziHSUDFFLxjzGStIfJ9JshrkgV25r80vMHcZw/exec';
 
     let tempChart = null;
     const GREENHOUSE_COUNT = 4;
@@ -348,7 +348,7 @@
     }
 
     function parseSensorId(sensor) {
-      return Number(firstDefined(sensor.id, sensor.ID, sensor.sensor_id, sensor.sensorId));
+      return Number(firstDefined(sensor.GH, sensor.gh, sensor.greenhouse, sensor.id, sensor.ID));
     }
 
     function readSensorOnline(sensor) {
