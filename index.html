@@ -291,7 +291,7 @@
         const colors = getGreenhouseColors('green' + id);
         const voltage = formatVoltage(sensor.u_sens);
         const rssi = formatRssi(sensor.ack_rssi !== '' && sensor.ack_rssi !== undefined ? sensor.ack_rssi : sensor.rx_rssi);
-        const online = sensor.online === true || sensor.online === 1 || String(sensor.online).toLowerCase() === 'true';
+        const online = sensor.online === true;
         const state = online ? 'On' : 'Off';
 
         return `
@@ -306,7 +306,7 @@
       const byId = {};
 
       (sensors || []).forEach(sensor => {
-        const id = Number(sensor.id);
+        const id = parseSensorId(sensor);
         if (id < 1 || id > GREENHOUSE_COUNT) return;
 
         if (!byId[id]) {
@@ -321,30 +321,50 @@
         }
 
         const item = byId[id];
-        const sensorOnline = sensor.online === true ||
-          sensor.online === 1 ||
-          String(sensor.online).toLowerCase() === 'true' ||
-          String(sensor.status).toLowerCase() === 'on';
+        const sensorOnline = readSensorOnline(sensor);
+        const voltage = firstDefined(sensor.u_sens, sensor.uSens, sensor.voltage, sensor.v, sensor.U);
+        const ackRssi = firstDefined(sensor.ack_rssi, sensor.ackRssi, sensor.ackRSSI);
+        const rxRssi = firstDefined(sensor.rx_rssi, sensor.rxRssi, sensor.rssi, sensor.RSSI);
 
-        if (sensor.online !== undefined && sensor.online !== '') {
+        if (sensorOnline !== null) {
           item.hasOnline = true;
           item.online = item.online || sensorOnline;
         }
 
-        if (isPlausibleVoltage(sensor.u_sens) && !isPlausibleVoltage(item.u_sens)) {
-          item.u_sens = sensor.u_sens;
+        if (isPlausibleVoltage(voltage) && !isPlausibleVoltage(item.u_sens)) {
+          item.u_sens = voltage;
         }
 
-        if (isValidRssi(sensor.ack_rssi) && !isValidRssi(item.ack_rssi)) {
-          item.ack_rssi = sensor.ack_rssi;
+        if (isValidRssi(ackRssi) && !isValidRssi(item.ack_rssi)) {
+          item.ack_rssi = ackRssi;
         }
 
-        if (isValidRssi(sensor.rx_rssi) && !isValidRssi(item.rx_rssi)) {
-          item.rx_rssi = sensor.rx_rssi;
+        if (isValidRssi(rxRssi) && !isValidRssi(item.rx_rssi)) {
+          item.rx_rssi = rxRssi;
         }
       });
 
       return Object.values(byId).sort((a, b) => a.id - b.id);
+    }
+
+    function parseSensorId(sensor) {
+      return Number(firstDefined(sensor.id, sensor.ID, sensor.sensor_id, sensor.sensorId));
+    }
+
+    function readSensorOnline(sensor) {
+      const value = firstDefined(sensor.online, sensor.Online, sensor.status, sensor.Status);
+      if (value === undefined || value === null || value === '') return null;
+      if (value === true || value === 1) return true;
+      if (value === false || value === 0) return false;
+
+      const text = String(value).trim().toLowerCase();
+      if (text === 'true' || text === '1' || text === 'yes' || text === 'on') return true;
+      if (text === 'false' || text === '0' || text === 'no' || text === 'off') return false;
+      return null;
+    }
+
+    function firstDefined(...values) {
+      return values.find(value => value !== undefined && value !== null && value !== '');
     }
 
     function drawChart(chartData) {
