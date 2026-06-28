@@ -73,9 +73,36 @@
       background: #1f2933;
       border-radius: 14px;
       padding: 14px;
+      position: relative;
       flex: 1;
       min-width: 0;
       height: 420px;
+    }
+
+    .zoom-controls {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      gap: 6px;
+      z-index: 2;
+    }
+
+    .zoom-controls button {
+      width: 32px;
+      height: 28px;
+      border: 1px solid #ffffff24;
+      border-radius: 8px;
+      background: #101820cc;
+      color: #dbe7ef;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .zoom-controls button:disabled {
+      opacity: 0.35;
+      cursor: default;
     }
 
     .sensor-strip {
@@ -131,6 +158,10 @@
   <div class="chart-layout">
     <div class="chart-box">
       <canvas id="tempChart"></canvas>
+      <div class="zoom-controls">
+        <button id="zoomOutBtn" onclick="changeHours(-1)" title="Менше годин">-</button>
+        <button id="zoomInBtn" onclick="changeHours(1)" title="Більше годин">+</button>
+      </div>
     </div>
   </div>
 
@@ -205,7 +236,24 @@
     function setHours(h) {
       chartSettings.hours = h;
       saveChartSettings();
+      updateZoomButtons();
       loadData();
+    }
+
+    function changeHours(direction) {
+      const steps = [3, 6, 12];
+      const index = Math.max(0, steps.indexOf(Number(chartSettings.hours)));
+      const nextIndex = Math.max(0, Math.min(steps.length - 1, index + direction));
+      setHours(steps[nextIndex]);
+    }
+
+    function updateZoomButtons() {
+      const zoomOut = document.getElementById('zoomOutBtn');
+      const zoomIn = document.getElementById('zoomInBtn');
+      if (!zoomOut || !zoomIn) return;
+
+      zoomOut.disabled = Number(chartSettings.hours) <= 3;
+      zoomIn.disabled = Number(chartSettings.hours) >= 12;
     }
 
     function selectGreenhouse(greenhouse) {
@@ -221,12 +269,6 @@
       const point = getChartClickPoint(event);
       const x = point.x;
       const y = point.y;
-      const xScale = chart.scales.x;
-
-      if (xScale && y >= area.bottom - 4 && y <= chart.height && x >= xScale.left && x <= xScale.right) {
-        setHours(hoursFromTimeClick((x - area.left) / (area.right - area.left)));
-        return;
-      }
 
       const insidePlot = x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
       const hit = chart.getElementsAtEventForMode(
@@ -262,18 +304,6 @@
       };
     }
 
-    function hoursFromTimeClick(ratio) {
-      if (chartSettings.hours === 12) {
-        if (ratio >= 0.75) return 3;
-        if (ratio >= 0.25) return 6;
-        return 12;
-      }
-
-      if (ratio < 1 / 3) return 12;
-      if (ratio < 2 / 3) return 6;
-      return 3;
-    }
-
     async function loadData() {
       const box = document.getElementById('greenhouses');
       const status = document.getElementById('status');
@@ -301,6 +331,7 @@
 
         drawChart(data.chart || []);
         renderSensors(data.sensors || []);
+        updateZoomButtons();
 
         status.textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA') +
           ' · ' + chartSettings.hours + ' год';
