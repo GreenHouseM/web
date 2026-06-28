@@ -23,27 +23,33 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-      max-width: 800px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      max-width: 1030px;
       margin: 0 auto 25px auto;
     }
 
     .card {
-      background: #1f2933;
+      background:
+        linear-gradient(180deg, var(--accent-bg, #1f2933), #1f2933 68%),
+        #1f2933;
+      border-top: 4px solid var(--accent, #80cbc4);
       border-radius: 14px;
-      padding: 18px;
+      padding: 22px 18px;
       text-align: center;
       box-shadow: 0 0 10px #0006;
     }
 
     .num {
-      font-size: 16px;
+      color: var(--accent-soft, #80cbc4);
+      font-size: 18px;
+      font-weight: 700;
       opacity: 0.8;
     }
 
     .temp {
-      font-size: 34px;
+      color: var(--accent, #ffffff);
+      font-size: 44px;
       font-weight: bold;
       margin-top: 8px;
     }
@@ -70,6 +76,16 @@
       background: #2f855a;
     }
 
+    @media (max-width: 420px) {
+      .grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+
+      .temp {
+        font-size: 38px;
+      }
+    }
+
     .chart-box {
       background: #1f2933;
       border-radius: 14px;
@@ -77,6 +93,43 @@
       max-width: 1000px;
       margin: 0 auto;
       height: 420px;
+    }
+
+    .sensor-strip {
+      max-width: 1000px;
+      margin: 10px auto 0 auto;
+      color: #dbe7ef;
+      font-size: 15px;
+      line-height: 1.5;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 14px;
+    }
+
+    .sensor-title {
+      color: #ffffffb8;
+      font-weight: 700;
+    }
+
+    .sensor-item {
+      color: var(--accent, #dbe7ef);
+      white-space: nowrap;
+    }
+
+    .sensor-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 0 2px #ffffff1f;
+      margin: 0 4px;
+      vertical-align: -1px;
+    }
+
+    .sensor-dot.on {
+      background: #22c55e;
     }
 
     .status {
@@ -100,13 +153,21 @@
     <canvas id="tempChart"></canvas>
   </div>
 
+  <div class="sensor-strip" id="sensorStrip"></div>
+
   <div class="status" id="status">Завантаження...</div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbx6NfDMXJjGVwNF92-uKMgtiXwRkaYnZZKyvpub45Ik5vL13WA5xYNru6SiwEPd9EwdoQ/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxl3r-M8EHIa0AtFGjEiN3faGfyKuCpyly6Re-43lB66cnUcNPO1ZHRT5TrKtG0ZO-tPQ/exec';
 
     let tempChart = null;
     const GREENHOUSE_COUNT = 4;
+    const GREENHOUSE_COLORS = {
+      green1: { main: '#4FC3F7', soft: '#9BE2FF', bg: '#173140' },
+      green2: { main: '#81C784', soft: '#B7E3B9', bg: '#1D3324' },
+      green3: { main: '#FFB74D', soft: '#FFD59A', bg: '#3A2A17' },
+      green4: { main: '#BA68C8', soft: '#D9A2E3', bg: '#33213A' }
+    };
 
     let chartSettings = JSON.parse(localStorage.getItem('chartSettings')) || {
       hours: 3,
@@ -149,15 +210,15 @@
         <button onclick="setHours(6)" class="${chartSettings.hours === 6 ? 'active' : ''}">6 год</button>
         <button onclick="setHours(12)" class="${chartSettings.hours === 12 ? 'active' : ''}">12 год</button>
 
-        <button onclick="toggleGreen('green1')" class="${chartSettings.visible.green1 ? 'active' : ''}">Т1</button>
-        <button onclick="toggleGreen('green2')" class="${chartSettings.visible.green2 ? 'active' : ''}">Т2</button>
-        <button onclick="toggleGreen('green3')" class="${chartSettings.visible.green3 ? 'active' : ''}">Т3</button>
-        <button onclick="toggleGreen('green4')" class="${chartSettings.visible.green4 ? 'active' : ''}">Т4</button>
+        <button onclick="toggleGreen('green1')" class="${chartSettings.visible.green1 ? 'active' : ''}" style="${buttonStyle('green1', chartSettings.visible.green1, false)}">Т1</button>
+        <button onclick="toggleGreen('green2')" class="${chartSettings.visible.green2 ? 'active' : ''}" style="${buttonStyle('green2', chartSettings.visible.green2, false)}">Т2</button>
+        <button onclick="toggleGreen('green3')" class="${chartSettings.visible.green3 ? 'active' : ''}" style="${buttonStyle('green3', chartSettings.visible.green3, false)}">Т3</button>
+        <button onclick="toggleGreen('green4')" class="${chartSettings.visible.green4 ? 'active' : ''}" style="${buttonStyle('green4', chartSettings.visible.green4, false)}">Т4</button>
 
-        <button onclick="toggleSetpoint('green1')" class="${chartSettings.setpoints.green1 ? 'active' : ''}">U1</button>
-        <button onclick="toggleSetpoint('green2')" class="${chartSettings.setpoints.green2 ? 'active' : ''}">U2</button>
-        <button onclick="toggleSetpoint('green3')" class="${chartSettings.setpoints.green3 ? 'active' : ''}">U3</button>
-        <button onclick="toggleSetpoint('green4')" class="${chartSettings.setpoints.green4 ? 'active' : ''}">U4</button>
+        <button onclick="toggleSetpoint('green1')" class="${chartSettings.setpoints.green1 ? 'active' : ''}" style="${buttonStyle('green1', chartSettings.setpoints.green1, true)}">U1</button>
+        <button onclick="toggleSetpoint('green2')" class="${chartSettings.setpoints.green2 ? 'active' : ''}" style="${buttonStyle('green2', chartSettings.setpoints.green2, true)}">U2</button>
+        <button onclick="toggleSetpoint('green3')" class="${chartSettings.setpoints.green3 ? 'active' : ''}" style="${buttonStyle('green3', chartSettings.setpoints.green3, true)}">U3</button>
+        <button onclick="toggleSetpoint('green4')" class="${chartSettings.setpoints.green4 ? 'active' : ''}" style="${buttonStyle('green4', chartSettings.setpoints.green4, true)}">U4</button>
       `;
     }
 
@@ -194,9 +255,11 @@
 
         (data.current || []).filter(item => Number(item.greenhouse) <= GREENHOUSE_COUNT).forEach(item => {
           const temp = Number(String(item.temp).replace(',', '.'));
+          const id = 'green' + item.greenhouse;
+          const colors = getGreenhouseColors(id);
 
           box.innerHTML += `
-            <div class="card">
+            <div class="card" style="--accent: ${colors.main}; --accent-soft: ${colors.soft}; --accent-bg: ${colors.bg};">
               <div class="num">Теплиця ${item.greenhouse}</div>
               <div class="temp">${isNaN(temp) ? '--' : temp.toFixed(1)}°C</div>
             </div>
@@ -204,6 +267,7 @@
         });
 
         drawChart(data.chart || []);
+        renderSensors(data.sensors || []);
 
         status.textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA');
 
@@ -211,6 +275,33 @@
         console.error(err);
         status.textContent = 'Помилка завантаження даних';
       }
+    }
+
+    function renderSensors(sensors) {
+      const strip = document.getElementById('sensorStrip');
+      const visibleSensors = (sensors || [])
+        .filter(sensor => Number(sensor.id) >= 1 && Number(sensor.id) <= GREENHOUSE_COUNT)
+        .sort((a, b) => Number(a.id) - Number(b.id));
+
+      if (visibleSensors.length === 0) {
+        strip.innerHTML = '';
+        return;
+      }
+
+      strip.innerHTML = '<span class="sensor-title">Сенсори:</span> ' + visibleSensors.map(sensor => {
+        const id = Number(sensor.id);
+        const colors = getGreenhouseColors('green' + id);
+        const voltage = formatVoltage(sensor.u_sens);
+        const rssi = formatRssi(sensor.ack_rssi !== '' && sensor.ack_rssi !== undefined ? sensor.ack_rssi : sensor.rx_rssi);
+        const online = sensor.online === true || sensor.online === 1 || String(sensor.online).toLowerCase() === 'true';
+        const state = online ? 'On' : 'Off';
+
+        return `
+          <span class="sensor-item" style="--accent: ${colors.soft};">
+            T${id} (<span class="sensor-dot ${online ? 'on' : ''}" title="${state}"></span>${state} ${voltage} ${rssi})
+          </span>
+        `;
+      }).join('');
     }
 
     function drawChart(chartData) {
@@ -225,6 +316,8 @@
           datasets.push({
             label: 'Теплиця ' + i,
             data: chartData.map(row => parseChartNumber(row[id])),
+            borderColor: getGreenhouseColors(id).main,
+            backgroundColor: getGreenhouseColors(id).main,
             tension: 0.3,
             pointRadius: 0,
             borderWidth: 2
@@ -235,6 +328,8 @@
           datasets.push({
             label: 'U' + i,
             data: chartData.map(row => getSetpointValue(row, i)),
+            borderColor: getGreenhouseColors(id).soft,
+            backgroundColor: getGreenhouseColors(id).soft,
             tension: 0,
             pointRadius: 0,
             borderWidth: 2,
@@ -307,6 +402,31 @@
 
       const n = Number(String(value).replace(',', '.'));
       return isNaN(n) ? null : n;
+    }
+
+    function getGreenhouseColors(id) {
+      return GREENHOUSE_COLORS[id] || { main: '#FFFFFF', soft: '#CCCCCC', bg: '#1f2933' };
+    }
+
+    function buttonStyle(id, active, softTone) {
+      const colors = getGreenhouseColors(id);
+      const color = softTone ? colors.soft : colors.main;
+
+      if (active) {
+        return `background: ${color}; border-color: ${color}; color: #101820;`;
+      }
+
+      return `border-color: ${color}; color: ${color};`;
+    }
+
+    function formatVoltage(value) {
+      const n = Number(String(value).replace(',', '.'));
+      return isNaN(n) ? '--V' : n.toFixed(2) + 'V';
+    }
+
+    function formatRssi(value) {
+      const n = Number(String(value).replace(',', '.'));
+      return isNaN(n) ? '--dBi' : Math.round(n) + 'dBi';
     }
 
     function getSetpointValue(row, index) {
