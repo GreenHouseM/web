@@ -50,17 +50,17 @@
     }
 
     .controls {
-      max-width: 1000px;
-      margin: 12px auto 0 auto;
+      width: 116px;
       display: grid;
-      gap: 8px;
+      align-content: start;
+      gap: 12px;
     }
 
     .control-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      justify-content: center;
+      justify-content: flex-start;
     }
 
     .control-row button {
@@ -68,12 +68,35 @@
       color: white;
       border: 1px solid #ffffff33;
       border-radius: 10px;
+      min-width: 52px;
       padding: 8px 12px;
       cursor: pointer;
     }
 
     .control-row button.active {
       background: #2f855a;
+    }
+
+    .chart-layout {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      align-items: stretch;
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .chart-layout {
+        flex-direction: column-reverse;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .control-row {
+        justify-content: center;
+      }
     }
 
     @media (max-width: 420px) {
@@ -90,8 +113,8 @@
       background: #1f2933;
       border-radius: 14px;
       padding: 14px;
-      max-width: 1000px;
-      margin: 0 auto;
+      flex: 1;
+      min-width: 0;
       height: 420px;
     }
 
@@ -145,11 +168,13 @@
 
   <div class="grid" id="greenhouses"></div>
 
-  <div class="chart-box">
-    <canvas id="tempChart"></canvas>
-  </div>
+  <div class="chart-layout">
+    <div class="controls" id="chartControls"></div>
 
-  <div class="controls" id="chartControls"></div>
+    <div class="chart-box">
+      <canvas id="tempChart"></canvas>
+    </div>
+  </div>
 
   <div class="sensor-strip" id="sensorStrip"></div>
 
