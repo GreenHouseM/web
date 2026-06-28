@@ -113,9 +113,7 @@
         green1: true,
         green2: true,
         green3: true,
-        green4: true,
-        green5: true,
-        green6: true
+        green4: true
       }
     };
 
@@ -135,8 +133,6 @@
         <button onclick="toggleGreen('green2')" class="${chartSettings.visible.green2 ? 'active' : ''}">Т2</button>
         <button onclick="toggleGreen('green3')" class="${chartSettings.visible.green3 ? 'active' : ''}">Т3</button>
         <button onclick="toggleGreen('green4')" class="${chartSettings.visible.green4 ? 'active' : ''}">Т4</button>
-        <button onclick="toggleGreen('green5')" class="${chartSettings.visible.green5 ? 'active' : ''}">Т5</button>
-        <button onclick="toggleGreen('green6')" class="${chartSettings.visible.green6 ? 'active' : ''}">Т6</button>
       `;
     }
 
@@ -164,7 +160,7 @@
 
         box.innerHTML = '';
 
-        (data.current || []).forEach(item => {
+        (data.current || []).filter(item => Number(item.greenhouse) <= 4).forEach(item => {
           const temp = Number(String(item.temp).replace(',', '.'));
 
           box.innerHTML += `
@@ -190,7 +186,7 @@
 
       const datasets = [];
 
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 4; i++) {
         const id = 'green' + i;
 
         if (!chartSettings.visible[id]) continue;
@@ -226,6 +222,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: false,
           interaction: {
             mode: 'index',
             intersect: false
