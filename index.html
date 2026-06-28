@@ -279,9 +279,7 @@
 
     function renderSensors(sensors) {
       const strip = document.getElementById('sensorStrip');
-      const visibleSensors = (sensors || [])
-        .filter(sensor => Number(sensor.id) >= 1 && Number(sensor.id) <= GREENHOUSE_COUNT)
-        .sort((a, b) => Number(a.id) - Number(b.id));
+      const visibleSensors = compactSensors(sensors);
 
       if (visibleSensors.length === 0) {
         strip.innerHTML = '';
@@ -302,6 +300,51 @@
           </span>
         `;
       }).join('');
+    }
+
+    function compactSensors(sensors) {
+      const byId = {};
+
+      (sensors || []).forEach(sensor => {
+        const id = Number(sensor.id);
+        if (id < 1 || id > GREENHOUSE_COUNT) return;
+
+        if (!byId[id]) {
+          byId[id] = {
+            id,
+            online: false,
+            hasOnline: false,
+            u_sens: '',
+            ack_rssi: '',
+            rx_rssi: ''
+          };
+        }
+
+        const item = byId[id];
+        const sensorOnline = sensor.online === true ||
+          sensor.online === 1 ||
+          String(sensor.online).toLowerCase() === 'true' ||
+          String(sensor.status).toLowerCase() === 'on';
+
+        if (sensor.online !== undefined && sensor.online !== '') {
+          item.hasOnline = true;
+          item.online = item.online || sensorOnline;
+        }
+
+        if (isPlausibleVoltage(sensor.u_sens) && !isPlausibleVoltage(item.u_sens)) {
+          item.u_sens = sensor.u_sens;
+        }
+
+        if (isValidRssi(sensor.ack_rssi) && !isValidRssi(item.ack_rssi)) {
+          item.ack_rssi = sensor.ack_rssi;
+        }
+
+        if (isValidRssi(sensor.rx_rssi) && !isValidRssi(item.rx_rssi)) {
+          item.rx_rssi = sensor.rx_rssi;
+        }
+      });
+
+      return Object.values(byId).sort((a, b) => a.id - b.id);
     }
 
     function drawChart(chartData) {
@@ -421,12 +464,22 @@
 
     function formatVoltage(value) {
       const n = Number(String(value).replace(',', '.'));
-      return isNaN(n) ? '--V' : n.toFixed(2) + 'V';
+      return isPlausibleVoltage(value) ? n.toFixed(2) + 'V' : '--V';
     }
 
     function formatRssi(value) {
       const n = Number(String(value).replace(',', '.'));
-      return isNaN(n) ? '--dBi' : Math.round(n) + 'dBi';
+      return isValidRssi(value) ? Math.round(n) + 'dBi' : '--dBi';
+    }
+
+    function isPlausibleVoltage(value) {
+      const n = Number(String(value).replace(',', '.'));
+      return !isNaN(n) && n >= 2.0 && n <= 5.5;
+    }
+
+    function isValidRssi(value) {
+      const n = Number(String(value).replace(',', '.'));
+      return !isNaN(n) && n < 0;
     }
 
     function getSetpointValue(row, index) {
