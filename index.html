@@ -311,11 +311,15 @@
       try {
         const res = await fetch(API_URL + '?hours=' + chartSettings.hours);
         const data = await res.json();
+        const sensors = compactSensors(data.sensors || []);
+        const onlineByGreenhouse = buildSensorOnlineMap(sensors);
 
         box.innerHTML = '';
 
         (data.current || []).filter(item => Number(item.greenhouse) <= GREENHOUSE_COUNT).forEach(item => {
           const temp = Number(String(item.temp).replace(',', '.'));
+          const greenhouse = Number(item.greenhouse);
+          const sensorOnline = onlineByGreenhouse[greenhouse] !== false;
           const id = 'green' + item.greenhouse;
           const colors = getGreenhouseColors(id);
           const active = chartSettings.mode === 'greenhouse' &&
@@ -324,13 +328,13 @@
           box.innerHTML += `
             <div class="card ${active ? 'active' : ''}" onclick="selectGreenhouse(${Number(item.greenhouse)})" style="--accent: ${colors.main}; --accent-soft: ${colors.soft}; --accent-bg: ${colors.bg};">
               <div class="num">Теплиця ${item.greenhouse}</div>
-              <div class="temp">${isNaN(temp) ? '--' : temp.toFixed(1)}°C</div>
+              <div class="temp">${!sensorOnline || isNaN(temp) ? '--' : temp.toFixed(1)}°C</div>
             </div>
           `;
         });
 
-        drawChart(data.chart || []);
-        renderSensors(data.sensors || []);
+        drawChart(data.chart || [], onlineByGreenhouse);
+        renderSensors(sensors);
         updateZoomButtons();
 
         status.textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA') +
@@ -412,6 +416,14 @@
       return Object.values(byId).sort((a, b) => a.id - b.id);
     }
 
+    function buildSensorOnlineMap(sensors) {
+      const map = {};
+      (sensors || []).forEach(sensor => {
+        map[Number(sensor.id)] = sensor.online === true;
+      });
+      return map;
+    }
+
     function parseSensorId(sensor) {
       return Number(firstDefined(sensor.GH, sensor.gh, sensor.greenhouse, sensor.id, sensor.ID));
     }
@@ -432,7 +444,7 @@
       return values.find(value => value !== undefined && value !== null && value !== '');
     }
 
-    function drawChart(chartData) {
+    function drawChart(chartData, onlineByGreenhouse) {
       const labels = chartData.map(row => row.time);
 
       const datasets = [];
@@ -448,7 +460,9 @@
         if (showTemp) {
           datasets.push({
             label: 'Теплиця ' + i,
-            data: chartData.map(row => parseChartNumber(row[id])),
+            data: onlineByGreenhouse && onlineByGreenhouse[i] === false
+              ? chartData.map(() => null)
+              : chartData.map(row => parseChartNumber(row[id])),
             borderColor: getGreenhouseColors(id).main,
             backgroundColor: getGreenhouseColors(id).main,
             tension: 0.3,
