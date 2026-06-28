@@ -33,6 +33,11 @@
       padding: 22px 18px;
       text-align: center;
       box-shadow: 0 0 10px #0006;
+      cursor: pointer;
+    }
+
+    .card.active {
+      box-shadow: 0 0 0 2px var(--accent, #80cbc4), 0 0 16px #0008;
     }
 
     .num {
@@ -194,6 +199,8 @@
 
     let chartSettings = JSON.parse(localStorage.getItem('chartSettings')) || {
       hours: 3,
+      mode: 'temps',
+      selectedGreenhouse: null,
       visible: {
         green1: true,
         green2: true,
@@ -208,6 +215,15 @@
       }
     };
 
+    if (!chartSettings.mode) {
+      chartSettings.mode = 'temps';
+    }
+    if (!Object.prototype.hasOwnProperty.call(chartSettings, 'selectedGreenhouse')) {
+      chartSettings.selectedGreenhouse = null;
+    }
+    if (!chartSettings.visible) {
+      chartSettings.visible = {};
+    }
     if (!chartSettings.setpoints) {
       chartSettings.setpoints = {};
     }
@@ -236,17 +252,8 @@
         </div>
 
         <div class="control-row">
-          <button onclick="toggleGreen('green1')" class="${chartSettings.visible.green1 ? 'active' : ''}" style="${buttonStyle('green1', chartSettings.visible.green1, false)}">Т1</button>
-          <button onclick="toggleGreen('green2')" class="${chartSettings.visible.green2 ? 'active' : ''}" style="${buttonStyle('green2', chartSettings.visible.green2, false)}">Т2</button>
-          <button onclick="toggleGreen('green3')" class="${chartSettings.visible.green3 ? 'active' : ''}" style="${buttonStyle('green3', chartSettings.visible.green3, false)}">Т3</button>
-          <button onclick="toggleGreen('green4')" class="${chartSettings.visible.green4 ? 'active' : ''}" style="${buttonStyle('green4', chartSettings.visible.green4, false)}">Т4</button>
-        </div>
-
-        <div class="control-row">
-          <button onclick="toggleSetpoint('green1')" class="${chartSettings.setpoints.green1 ? 'active' : ''}" style="${buttonStyle('green1', chartSettings.setpoints.green1, true)}">Уст.1</button>
-          <button onclick="toggleSetpoint('green2')" class="${chartSettings.setpoints.green2 ? 'active' : ''}" style="${buttonStyle('green2', chartSettings.setpoints.green2, true)}">Уст.2</button>
-          <button onclick="toggleSetpoint('green3')" class="${chartSettings.setpoints.green3 ? 'active' : ''}" style="${buttonStyle('green3', chartSettings.setpoints.green3, true)}">Уст.3</button>
-          <button onclick="toggleSetpoint('green4')" class="${chartSettings.setpoints.green4 ? 'active' : ''}" style="${buttonStyle('green4', chartSettings.setpoints.green4, true)}">Уст.4</button>
+          <button onclick="showTemperatures()" class="${chartSettings.mode === 'temps' ? 'active' : ''}">Тепл.</button>
+          <button onclick="showSetpoints()" class="${chartSettings.mode === 'setpoints' ? 'active' : ''}">Уст.</button>
         </div>
       `;
     }
@@ -258,15 +265,25 @@
       loadData();
     }
 
-    function toggleGreen(id) {
-      chartSettings.visible[id] = !chartSettings.visible[id];
+    function showTemperatures() {
+      chartSettings.mode = 'temps';
+      chartSettings.selectedGreenhouse = null;
       saveChartSettings();
       renderControls();
       loadData();
     }
 
-    function toggleSetpoint(id) {
-      chartSettings.setpoints[id] = !chartSettings.setpoints[id];
+    function showSetpoints() {
+      chartSettings.mode = 'setpoints';
+      chartSettings.selectedGreenhouse = null;
+      saveChartSettings();
+      renderControls();
+      loadData();
+    }
+
+    function selectGreenhouse(greenhouse) {
+      chartSettings.mode = 'greenhouse';
+      chartSettings.selectedGreenhouse = Number(greenhouse);
       saveChartSettings();
       renderControls();
       loadData();
@@ -286,9 +303,11 @@
           const temp = Number(String(item.temp).replace(',', '.'));
           const id = 'green' + item.greenhouse;
           const colors = getGreenhouseColors(id);
+          const active = chartSettings.mode === 'greenhouse' &&
+            Number(chartSettings.selectedGreenhouse) === Number(item.greenhouse);
 
           box.innerHTML += `
-            <div class="card" style="--accent: ${colors.main}; --accent-soft: ${colors.soft}; --accent-bg: ${colors.bg};">
+            <div class="card ${active ? 'active' : ''}" onclick="selectGreenhouse(${Number(item.greenhouse)})" style="--accent: ${colors.main}; --accent-soft: ${colors.soft}; --accent-bg: ${colors.bg};">
               <div class="num">Теплиця ${item.greenhouse}</div>
               <div class="temp">${isNaN(temp) ? '--' : temp.toFixed(1)}°C</div>
             </div>
@@ -403,8 +422,13 @@
 
       for (let i = 1; i <= GREENHOUSE_COUNT; i++) {
         const id = 'green' + i;
+        const selected = Number(chartSettings.selectedGreenhouse) === i;
+        const showTemp = chartSettings.mode === 'temps' ||
+          (chartSettings.mode === 'greenhouse' && selected);
+        const showSetpoint = chartSettings.mode === 'setpoints' ||
+          (chartSettings.mode === 'greenhouse' && selected);
 
-        if (chartSettings.visible[id]) {
+        if (showTemp) {
           datasets.push({
             label: 'Теплиця ' + i,
             data: chartData.map(row => parseChartNumber(row[id])),
@@ -416,7 +440,7 @@
           });
         }
 
-        if (chartSettings.setpoints[id]) {
+        if (showSetpoint) {
           datasets.push({
             label: 'Уст.' + i,
             data: chartData.map(row => getSetpointValue(row, i)),
@@ -498,17 +522,6 @@
 
     function getGreenhouseColors(id) {
       return GREENHOUSE_COLORS[id] || { main: '#FFFFFF', soft: '#CCCCCC', bg: '#1f2933' };
-    }
-
-    function buttonStyle(id, active, softTone) {
-      const colors = getGreenhouseColors(id);
-      const color = softTone ? colors.soft : colors.main;
-
-      if (active) {
-        return `background: ${color}; border-color: ${color}; color: #101820;`;
-      }
-
-      return `border-color: ${color}; color: ${color};`;
     }
 
     function formatVoltage(value) {
