@@ -54,54 +54,9 @@
       margin-top: 8px;
     }
 
-    .controls {
-      width: 116px;
-      display: grid;
-      align-content: start;
-      gap: 12px;
-    }
-
-    .control-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: flex-start;
-    }
-
-    .control-row button {
-      background: #1f2933;
-      color: white;
-      border: 1px solid #ffffff33;
-      border-radius: 10px;
-      min-width: 52px;
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-
-    .control-row button.active {
-      background: #2f855a;
-    }
-
     .chart-layout {
-      max-width: 1140px;
+      max-width: 1000px;
       margin: 0 auto;
-      display: flex;
-      align-items: stretch;
-      gap: 14px;
-    }
-
-    @media (max-width: 640px) {
-      .chart-layout {
-        flex-direction: column-reverse;
-      }
-
-      .controls {
-        width: 100%;
-      }
-
-      .control-row {
-        justify-content: center;
-      }
     }
 
     @media (max-width: 420px) {
@@ -174,8 +129,6 @@
   <div class="grid" id="greenhouses"></div>
 
   <div class="chart-layout">
-    <div class="controls" id="chartControls"></div>
-
     <div class="chart-box">
       <canvas id="tempChart"></canvas>
     </div>
@@ -201,6 +154,7 @@
       hours: 3,
       mode: 'temps',
       selectedGreenhouse: null,
+      showSetpoints: false,
       visible: {
         green1: true,
         green2: true,
@@ -218,8 +172,15 @@
     if (!chartSettings.mode) {
       chartSettings.mode = 'temps';
     }
+    if (chartSettings.mode === 'setpoints') {
+      chartSettings.mode = 'temps';
+      chartSettings.showSetpoints = true;
+    }
     if (!Object.prototype.hasOwnProperty.call(chartSettings, 'selectedGreenhouse')) {
       chartSettings.selectedGreenhouse = null;
+    }
+    if (!Object.prototype.hasOwnProperty.call(chartSettings, 'showSetpoints')) {
+      chartSettings.showSetpoints = false;
     }
     if (!chartSettings.visible) {
       chartSettings.visible = {};
@@ -241,52 +202,62 @@
       localStorage.setItem('chartSettings', JSON.stringify(chartSettings));
     }
 
-    function renderControls() {
-      const controls = document.getElementById('chartControls');
-
-      controls.innerHTML = `
-        <div class="control-row">
-          <button onclick="setHours(3)" class="${chartSettings.hours === 3 ? 'active' : ''}">3 год</button>
-          <button onclick="setHours(6)" class="${chartSettings.hours === 6 ? 'active' : ''}">6 год</button>
-          <button onclick="setHours(12)" class="${chartSettings.hours === 12 ? 'active' : ''}">12 год</button>
-        </div>
-
-        <div class="control-row">
-          <button onclick="showTemperatures()" class="${chartSettings.mode === 'temps' ? 'active' : ''}">Тепл.</button>
-          <button onclick="showSetpoints()" class="${chartSettings.mode === 'setpoints' ? 'active' : ''}">Уст.</button>
-        </div>
-      `;
-    }
-
     function setHours(h) {
       chartSettings.hours = h;
       saveChartSettings();
-      renderControls();
-      loadData();
-    }
-
-    function showTemperatures() {
-      chartSettings.mode = 'temps';
-      chartSettings.selectedGreenhouse = null;
-      saveChartSettings();
-      renderControls();
-      loadData();
-    }
-
-    function showSetpoints() {
-      chartSettings.mode = 'setpoints';
-      chartSettings.selectedGreenhouse = null;
-      saveChartSettings();
-      renderControls();
       loadData();
     }
 
     function selectGreenhouse(greenhouse) {
       chartSettings.mode = 'greenhouse';
       chartSettings.selectedGreenhouse = Number(greenhouse);
+      chartSettings.showSetpoints = true;
       saveChartSettings();
-      renderControls();
       loadData();
+    }
+
+    function handleChartClick(event, elements, chart) {
+      const area = chart.chartArea;
+      const x = event.x;
+      const y = event.y;
+
+      if (y > area.bottom && x >= area.left && x <= area.right) {
+        setHours(hoursFromTimeClick((x - area.left) / (area.right - area.left)));
+        return;
+      }
+
+      const insidePlot = x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
+      const hit = chart.getElementsAtEventForMode(
+        event.native,
+        'nearest',
+        { intersect: true },
+        false
+      );
+
+      if (insidePlot && hit.length === 0) {
+        if (chartSettings.mode !== 'temps' || chartSettings.selectedGreenhouse !== null) {
+          chartSettings.mode = 'temps';
+          chartSettings.selectedGreenhouse = null;
+          chartSettings.showSetpoints = false;
+        } else {
+          chartSettings.showSetpoints = !chartSettings.showSetpoints;
+        }
+
+        saveChartSettings();
+        loadData();
+      }
+    }
+
+    function hoursFromTimeClick(ratio) {
+      if (chartSettings.hours === 12) {
+        if (ratio >= 0.75) return 3;
+        if (ratio >= 0.25) return 6;
+        return 12;
+      }
+
+      if (ratio < 1 / 3) return 12;
+      if (ratio < 2 / 3) return 6;
+      return 3;
     }
 
     async function loadData() {
@@ -425,7 +396,7 @@
         const selected = Number(chartSettings.selectedGreenhouse) === i;
         const showTemp = chartSettings.mode === 'temps' ||
           (chartSettings.mode === 'greenhouse' && selected);
-        const showSetpoint = chartSettings.mode === 'setpoints' ||
+        const showSetpoint = (chartSettings.mode === 'temps' && chartSettings.showSetpoints) ||
           (chartSettings.mode === 'greenhouse' && selected);
 
         if (showTemp) {
@@ -436,6 +407,7 @@
             backgroundColor: getGreenhouseColors(id).main,
             tension: 0.3,
             pointRadius: 0,
+            pointHitRadius: 6,
             borderWidth: 2
           });
         }
@@ -448,6 +420,7 @@
             backgroundColor: getGreenhouseColors(id).soft,
             tension: 0,
             pointRadius: 0,
+            pointHitRadius: 6,
             borderWidth: 2,
             borderDash: [6, 4]
           });
@@ -470,6 +443,7 @@
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
+          onClick: handleChartClick,
           interaction: {
             mode: 'index',
             intersect: false
@@ -570,7 +544,6 @@
       return null;
     }
 
-    renderControls();
     loadData();
     setInterval(loadData, 30000);
   </script>
